@@ -20,9 +20,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── FRONTEND — serve the public folder ─────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
-
 // ── API ROUTES ──────────────────────────────────────────────────────
 app.use('/api/auth',    require('./routes/auth'));
 app.use('/api/members', require('./routes/members'));
@@ -31,11 +28,6 @@ app.use('/api/stats',   require('./routes/stats'));
 
 // ── HEALTH CHECK ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-
-// ── FALLBACK — all other routes serve the frontend ──────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 // ── ERROR HANDLER ───────────────────────────────────────────────────
 app.use((err, req, res, next) => {
