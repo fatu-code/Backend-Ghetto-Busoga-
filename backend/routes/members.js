@@ -3,6 +3,7 @@ const multer     = require('multer');
 const cloudinary = require('cloudinary').v2;
 const QRCode     = require('qrcode');
 const { requireAuth } = require('../middleware/auth');
+const { logAudit } = require('../db/audit');
 
 // ── CLOUDINARY CONFIG ───────────────────────────────────────────────
 cloudinary.config({
@@ -145,6 +146,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
      notes, qr_data_url, req.user.id, depot_role || null]
   );
 
+  await logAudit(db, req, 'member.create', 'member', memberId, `Profiled ${name} (${memberId})`);
   res.status(201).json({ member: rows[0] });
 });
 
@@ -205,6 +207,13 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
      depot_role ?? current.depot_role, id]
   );
 
+  const newAmt = amount ? parseInt(amount) : Number(current.amount);
+  const disbursing = Number(current.amount) === 0 && newAmt > 0;
+  await logAudit(db, req, disbursing ? 'member.disburse' : 'member.update', 'member', id,
+    disbursing
+      ? `Disbursed UGX ${newAmt.toLocaleString('en-UG')} to ${name || current.name} (${id})`
+      : `Updated ${name || current.name} (${id})`);
+
   res.json({ member: rows[0] });
 });
 
@@ -218,6 +227,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     await cloudinary.uploader.destroy(rows[0].photo_public_id).catch(() => {});
   }
   await db.query('DELETE FROM members WHERE id = $1', [req.params.id]);
+  await logAudit(db, req, 'member.delete', 'member', req.params.id, `Deleted member ${req.params.id}`);
   res.json({ success: true });
 });
 
@@ -237,7 +247,7 @@ router.get('/:id/repayments', requireAuth, async (req, res) => {
 router.post('/:id/repayments', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   const { id } = req.params;
-  const member = await db.query('SELECT id, amount FROM members WHERE id = $1', [id]);
+  const member = await db.query('SELECT id, name, amount FROM members WHERE id = $1', [id]);
   if (!member.rows[0]) return res.status(404).json({ error: 'Member not found' });
   if (!(Number(member.rows[0].amount) > 0))
     return res.status(400).json({ error: 'This member has not been disbursed yet, so there is nothing to repay' });
@@ -254,6 +264,7 @@ router.post('/:id/repayments', requireAuth, async (req, res) => {
     [id]
   );
   const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  await logAudit(db, req, 'repayment.add', 'member', id, `Recorded UGX ${amt.toLocaleString('en-UG')} repayment for ${member.rows[0].name} (${id})`);
   res.status(201).json({ repayments: rows, total_repaid: total });
 });
 

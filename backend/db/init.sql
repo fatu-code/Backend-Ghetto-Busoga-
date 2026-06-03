@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS repayments (
 );
 CREATE INDEX IF NOT EXISTS idx_repayments_member ON repayments(member_id);
 
+-- ── AUDIT LOG (who did what, when) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER,
+  user_name  VARCHAR(255),
+  action     VARCHAR(50),
+  entity     VARCHAR(20),
+  entity_id  VARCHAR(50),
+  detail     TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
+
 -- Indexes for fast search on large datasets
 CREATE INDEX IF NOT EXISTS idx_members_district ON members(district);
 CREATE INDEX IF NOT EXISTS idx_members_depot    ON members(depot);

@@ -26,6 +26,7 @@ app.use('/api/members', require('./routes/members'));
 app.use('/api/verify',  require('./routes/verify'));
 app.use('/api/stats',   require('./routes/stats'));
 app.use('/api/users',   require('./routes/users'));
+app.use('/api/audit',   require('./routes/audit'));
 
 // ── HEALTH CHECK ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

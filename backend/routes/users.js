@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const { requireAuth } = require('../middleware/auth');
+const { logAudit } = require('../db/audit');
 
 // Only administrators may manage staff accounts.
 function requireAdmin(req, res, next) {
@@ -37,6 +38,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
      VALUES ($1,$2,$3,$4) RETURNING id, name, username, role, created_at`,
     [name.trim(), username, hash, role === 'admin' ? 'admin' : 'staff']
   );
+  await logAudit(db, req, 'user.create', 'user', rows[0].id, `Added staff @${username} (${rows[0].role})`);
   res.status(201).json({ user: rows[0] });
 });
 
@@ -64,6 +66,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
      RETURNING id, name, username, role, created_at`,
     [name ? name.trim() : cur.rows[0].name, newRole, hash, id]
   );
+  await logAudit(db, req, 'user.update', 'user', id, `Updated staff @${rows[0].username}`);
   res.json({ user: rows[0] });
 });
 
@@ -73,13 +76,14 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   if (Number(req.params.id) === Number(req.user.id))
     return res.status(400).json({ error: 'You cannot delete your own account' });
 
-  const cur = await db.query('SELECT id FROM users WHERE id = $1', [req.params.id]);
+  const cur = await db.query('SELECT id, name, username FROM users WHERE id = $1', [req.params.id]);
   if (!cur.rows[0]) return res.status(404).json({ error: 'User not found' });
 
   // Keep the records they touched, just unlink the reference.
   await db.query('UPDATE members SET registered_by = NULL WHERE registered_by = $1', [req.params.id]);
   await db.query('UPDATE repayments SET recorded_by = NULL WHERE recorded_by = $1', [req.params.id]);
   await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+  await logAudit(db, req, 'user.delete', 'user', req.params.id, `Removed staff @${cur.rows[0].username}`);
   res.json({ success: true });
 });
 
