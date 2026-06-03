@@ -38,13 +38,13 @@ app.get('/v/:id', async (req, res) => {
   const initials = (name) => ((name || '').trim().split(/\s+/).slice(0, 2)
     .map((w) => w[0] || '').join('').toUpperCase() || '?');
   const fmt = (n) => Number(n || 0).toLocaleString('en-UG');
-  const maskNin = (nin) => !nin ? 'Not captured'
+  const maskNin = (nin) => !nin ? '-'
     : (nin.length <= 8 ? nin[0] + '•'.repeat(Math.max(1, nin.length - 1))
       : nin.slice(0, 4) + '•'.repeat(nin.length - 8) + nin.slice(-4));
   const fmtDate = (d) => {
-    if (!d) return 'Not captured';
+    if (!d) return '-';
     const x = new Date(d);
-    return isNaN(x) ? 'Not captured'
+    return isNaN(x) ? '-'
       : x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
