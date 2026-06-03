@@ -12,7 +12,13 @@ router.get('/', requireAuth, async (req, res) => {
         SUM(amount)                    AS total_disbursed,
         COUNT(DISTINCT district)       AS districts_covered,
         COUNT(DISTINCT depot)          AS total_depots,
-        COUNT(*) FILTER (WHERE status = 'Active') AS active_members
+        COUNT(*) FILTER (WHERE status = 'Active') AS active_members,
+        (SELECT COALESCE(SUM(amount), 0) FROM repayments) AS total_repaid,
+        (SELECT COUNT(*) FROM members m
+           WHERE m.amount > 0 AND m.disbursement_date IS NOT NULL
+             AND m.disbursement_date + INTERVAL '12 months' < CURRENT_DATE
+             AND (m.amount * 1.06) > COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.member_id = m.id), 0)
+        ) AS overdue_count
       FROM members
     `),
     db.query(`

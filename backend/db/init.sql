@@ -47,6 +47,17 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS parish     VARCHAR(255);
 -- Migration: depot leadership role (Chairperson, Vice Chairperson, Treasurer, Secretary, Publicity)
 ALTER TABLE members ADD COLUMN IF NOT EXISTS depot_role VARCHAR(50);
 
+-- ── REPAYMENTS (loan repayments recorded against a disbursed member) ──
+CREATE TABLE IF NOT EXISTS repayments (
+  id          SERIAL PRIMARY KEY,
+  member_id   VARCHAR(20) NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  amount      INTEGER     NOT NULL,
+  paid_on     DATE        NOT NULL,
+  recorded_by INTEGER     REFERENCES users(id),
+  created_at  TIMESTAMP   DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_repayments_member ON repayments(member_id);
+
 -- Indexes for fast search on large datasets
 CREATE INDEX IF NOT EXISTS idx_members_district ON members(district);
 CREATE INDEX IF NOT EXISTS idx_members_depot    ON members(depot);

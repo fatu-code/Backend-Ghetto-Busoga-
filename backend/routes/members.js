@@ -220,4 +220,40 @@ router.delete('/:id', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
+// ── REPAYMENTS ──────────────────────────────────────────────────────
+// List repayments for a member (+ total repaid).
+router.get('/:id/repayments', requireAuth, async (req, res) => {
+  const db = req.app.locals.db;
+  const { rows } = await db.query(
+    'SELECT id, amount, paid_on, created_at FROM repayments WHERE member_id = $1 ORDER BY paid_on DESC, id DESC',
+    [req.params.id]
+  );
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  res.json({ repayments: rows, total_repaid: total });
+});
+
+// Record a repayment against a disbursed member.
+router.post('/:id/repayments', requireAuth, async (req, res) => {
+  const db = req.app.locals.db;
+  const { id } = req.params;
+  const member = await db.query('SELECT id, amount FROM members WHERE id = $1', [id]);
+  if (!member.rows[0]) return res.status(404).json({ error: 'Member not found' });
+  if (!(Number(member.rows[0].amount) > 0))
+    return res.status(400).json({ error: 'This member has not been disbursed yet, so there is nothing to repay' });
+
+  const amt = parseInt(req.body.amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'Enter a valid repayment amount' });
+
+  await db.query(
+    'INSERT INTO repayments (member_id, amount, paid_on, recorded_by) VALUES ($1,$2,$3,$4)',
+    [id, amt, req.body.paid_on || new Date(), req.user.id]
+  );
+  const { rows } = await db.query(
+    'SELECT id, amount, paid_on, created_at FROM repayments WHERE member_id = $1 ORDER BY paid_on DESC, id DESC',
+    [id]
+  );
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  res.status(201).json({ repayments: rows, total_repaid: total });
+});
+
 module.exports = router;
