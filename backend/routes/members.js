@@ -97,8 +97,10 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   const { name, phone, district, district_name, sub_county, parish, depot, village, gender, amount, disbursement_date, notes } = req.body;
   const nin = normaliseNin(req.body.nin);
 
-  if (!name || !district || !depot || !amount)
-    return res.status(400).json({ error: 'Name, district, depot and amount are required' });
+  // Profile-first: a member can be registered to a depot before any money.
+  // Amount and disbursement date are optional and filled in when funds come.
+  if (!name || !district || !depot)
+    return res.status(400).json({ error: 'Name, district and depot are required' });
   if (!nin)
     return res.status(400).json({ error: 'NIN is required' });
   if (!isValidNin(nin))
@@ -138,7 +140,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      RETURNING *`,
     [memberId, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
-     photo_url, photo_public_id, parseInt(amount), disbursement_date || null,
+     photo_url, photo_public_id, amount ? parseInt(amount) : 0, disbursement_date || null,
      notes, qr_data_url, req.user.id]
   );
 
