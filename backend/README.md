@@ -2,7 +2,7 @@
 ## Disbursement Verification System
 
 A live beneficiary database for the Busoga Ghetto Structure SACCO Programme
-under the direction of Haji Faruk Kirunda, Presidential Special Assistant.
+under the direction of Al-Hajj Faruk Kirunda, Presidential Special Assistant.
 
 ## Stack
 - **Backend:** Node.js + Express

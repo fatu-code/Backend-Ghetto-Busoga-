@@ -18,9 +18,12 @@ CREATE TABLE IF NOT EXISTS members (
   phone             VARCHAR(50),
   district          VARCHAR(10)  NOT NULL,
   district_name     VARCHAR(100) NOT NULL,
+  sub_county        VARCHAR(255),
+  parish            VARCHAR(255),
   depot             VARCHAR(255) NOT NULL,
   village           VARCHAR(255),
   gender            VARCHAR(20),
+  nin               VARCHAR(20),
   photo_url         TEXT,
   photo_public_id   TEXT,
   amount            INTEGER      NOT NULL DEFAULT 0,
@@ -33,12 +36,23 @@ CREATE TABLE IF NOT EXISTS members (
   updated_at        TIMESTAMP DEFAULT NOW()
 );
 
+-- Migration: add NIN to existing deployments (safe to re-run)
+ALTER TABLE members ADD COLUMN IF NOT EXISTS nin VARCHAR(20);
+
+-- Migration: add loan-agreement location fields (safe to re-run)
+ALTER TABLE members ADD COLUMN IF NOT EXISTS sub_county VARCHAR(255);
+ALTER TABLE members ADD COLUMN IF NOT EXISTS parish     VARCHAR(255);
+
 -- Indexes for fast search on large datasets
 CREATE INDEX IF NOT EXISTS idx_members_district ON members(district);
 CREATE INDEX IF NOT EXISTS idx_members_depot    ON members(depot);
 CREATE INDEX IF NOT EXISTS idx_members_status   ON members(status);
 CREATE INDEX IF NOT EXISTS idx_members_name     ON members(name);
 CREATE INDEX IF NOT EXISTS idx_members_created  ON members(created_at DESC);
+
+-- One NIN can only be registered once (prevents duplicate / ghost beneficiaries).
+-- Partial index so legacy rows with a NULL nin don't collide.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_nin ON members(nin) WHERE nin IS NOT NULL;
 
 -- ID sequence per district
 CREATE TABLE IF NOT EXISTS member_sequences (
@@ -81,7 +95,7 @@ CREATE OR REPLACE TRIGGER members_updated_at
 -- Password: faruk123
 INSERT INTO users (name, username, password_hash, role)
 VALUES (
-  'Haji Faruk Kirunda',
+  'Al-Hajj Faruk Kirunda',
   'faruk',
   '$2b$12$/uVuSMrK9XcQeVyBEwMeIe7rrYce0eq5noGMl1LrEk5YJsFzfS7fO',
   'admin'

@@ -22,6 +22,16 @@ const upload = multer({
   },
 });
 
+// Helper: normalise a Uganda NIN — uppercase, strip spaces
+function normaliseNin(nin) {
+  return (nin || '').toUpperCase().replace(/\s+/g, '').trim();
+}
+
+// Helper: basic NIN shape check (Uganda NIN is 14 alphanumeric chars, starts with C)
+function isValidNin(nin) {
+  return /^[A-Z0-9]{10,14}$/.test(nin);
+}
+
 // Helper: upload buffer to Cloudinary
 function uploadToCloudinary(buffer, publicId) {
   return new Promise((resolve, reject) => {
@@ -44,7 +54,7 @@ router.get('/', requireAuth, async (req, res) => {
   let i = 1;
 
   if (q) {
-    where.push(`(name ILIKE $${i} OR id ILIKE $${i} OR phone ILIKE $${i})`);
+    where.push(`(name ILIKE $${i} OR id ILIKE $${i} OR phone ILIKE $${i} OR nin ILIKE $${i})`);
     params.push(`%${q}%`); i++;
   }
   if (district) { where.push(`district = $${i}`); params.push(district); i++; }
@@ -60,7 +70,7 @@ router.get('/', requireAuth, async (req, res) => {
 
   params.push(parseInt(limit), offset);
   const result = await db.query(
-    `SELECT id, name, phone, district, district_name, depot, village, gender,
+    `SELECT id, name, phone, district, district_name, depot, village, gender, nin,
             photo_url, amount, disbursement_date, status, created_at
        FROM members ${whereClause}
       ORDER BY created_at DESC
@@ -84,10 +94,20 @@ router.get('/:id', requireAuth, async (req, res) => {
 // ── POST /api/members — register new beneficiary ────────────────────
 router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   const db = req.app.locals.db;
-  const { name, phone, district, district_name, depot, village, gender, amount, disbursement_date, notes } = req.body;
+  const { name, phone, district, district_name, sub_county, parish, depot, village, gender, amount, disbursement_date, notes } = req.body;
+  const nin = normaliseNin(req.body.nin);
 
   if (!name || !district || !depot || !amount)
     return res.status(400).json({ error: 'Name, district, depot and amount are required' });
+  if (!nin)
+    return res.status(400).json({ error: 'NIN is required' });
+  if (!isValidNin(nin))
+    return res.status(400).json({ error: 'NIN looks invalid — it should be 10–14 letters/numbers (e.g. CM91...)' });
+
+  // Block duplicate beneficiaries sharing a NIN
+  const dup = await db.query('SELECT id, name FROM members WHERE nin = $1', [nin]);
+  if (dup.rows[0])
+    return res.status(409).json({ error: `NIN already registered to ${dup.rows[0].name} (${dup.rows[0].id})` });
 
   // Generate member ID
   const idResult = await db.query('SELECT next_member_id($1) AS id', [district]);
@@ -113,11 +133,11 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
 
   const { rows } = await db.query(
     `INSERT INTO members
-       (id, name, phone, district, district_name, depot, village, gender,
+       (id, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
         photo_url, photo_public_id, amount, disbursement_date, notes, qr_data_url, registered_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      RETURNING *`,
-    [memberId, name, phone, district, district_name, depot, village, gender,
+    [memberId, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
      photo_url, photo_public_id, parseInt(amount), disbursement_date || null,
      notes, qr_data_url, req.user.id]
   );
@@ -148,18 +168,34 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     photo_public_id = result.public_id;
   }
 
-  const { name, phone, district, district_name, depot, village, gender, amount, disbursement_date, status, notes } = req.body;
+  const { name, phone, district, district_name, sub_county, parish, depot, village, gender, amount, disbursement_date, status, notes } = req.body;
+
+  // NIN: keep existing unless a new one is supplied
+  let nin = current.nin;
+  if (req.body.nin !== undefined) {
+    nin = normaliseNin(req.body.nin);
+    if (!nin)
+      return res.status(400).json({ error: 'NIN is required' });
+    if (!isValidNin(nin))
+      return res.status(400).json({ error: 'NIN looks invalid — it should be 10–14 letters/numbers (e.g. CM91...)' });
+    if (nin !== current.nin) {
+      const dup = await db.query('SELECT id, name FROM members WHERE nin = $1 AND id <> $2', [nin, id]);
+      if (dup.rows[0])
+        return res.status(409).json({ error: `NIN already registered to ${dup.rows[0].name} (${dup.rows[0].id})` });
+    }
+  }
 
   const { rows } = await db.query(
     `UPDATE members SET
-       name=$1, phone=$2, district=$3, district_name=$4, depot=$5, village=$6,
-       gender=$7, photo_url=$8, photo_public_id=$9, amount=$10,
-       disbursement_date=$11, status=$12, notes=$13
-     WHERE id=$14 RETURNING *`,
+       name=$1, phone=$2, district=$3, district_name=$4, sub_county=$5, parish=$6,
+       depot=$7, village=$8, gender=$9, nin=$10, photo_url=$11, photo_public_id=$12,
+       amount=$13, disbursement_date=$14, status=$15, notes=$16
+     WHERE id=$17 RETURNING *`,
     [name || current.name, phone ?? current.phone,
      district || current.district, district_name || current.district_name,
+     sub_county ?? current.sub_county, parish ?? current.parish,
      depot || current.depot, village ?? current.village,
-     gender || current.gender, photo_url, photo_public_id,
+     gender || current.gender, nin, photo_url, photo_public_id,
      amount ? parseInt(amount) : current.amount,
      disbursement_date ?? current.disbursement_date,
      status || current.status, notes ?? current.notes, id]
