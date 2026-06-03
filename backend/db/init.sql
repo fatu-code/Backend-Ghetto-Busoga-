@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS members (
   sub_county        VARCHAR(255),
   parish            VARCHAR(255),
   depot             VARCHAR(255) NOT NULL,
+  depot_role        VARCHAR(50),
   village           VARCHAR(255),
   gender            VARCHAR(20),
   nin               VARCHAR(20),
@@ -42,6 +43,9 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS nin VARCHAR(20);
 -- Migration: add loan-agreement location fields (safe to re-run)
 ALTER TABLE members ADD COLUMN IF NOT EXISTS sub_county VARCHAR(255);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS parish     VARCHAR(255);
+
+-- Migration: depot leadership role (Chairperson, Vice Chairperson, Treasurer, Secretary, Publicity)
+ALTER TABLE members ADD COLUMN IF NOT EXISTS depot_role VARCHAR(50);
 
 -- Indexes for fast search on large datasets
 CREATE INDEX IF NOT EXISTS idx_members_district ON members(district);

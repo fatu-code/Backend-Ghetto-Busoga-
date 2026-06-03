@@ -70,7 +70,7 @@ router.get('/', requireAuth, async (req, res) => {
 
   params.push(parseInt(limit), offset);
   const result = await db.query(
-    `SELECT id, name, phone, district, district_name, depot, village, gender, nin,
+    `SELECT id, name, phone, district, district_name, depot, depot_role, village, gender, nin,
             photo_url, amount, disbursement_date, status, created_at
        FROM members ${whereClause}
       ORDER BY created_at DESC
@@ -94,7 +94,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 // ── POST /api/members — register new beneficiary ────────────────────
 router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   const db = req.app.locals.db;
-  const { name, phone, district, district_name, sub_county, parish, depot, village, gender, amount, disbursement_date, notes } = req.body;
+  const { name, phone, district, district_name, sub_county, parish, depot, depot_role, village, gender, amount, disbursement_date, notes } = req.body;
   const nin = normaliseNin(req.body.nin);
 
   // Profile-first: a member can be registered to a depot before any money.
@@ -136,12 +136,12 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   const { rows } = await db.query(
     `INSERT INTO members
        (id, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
-        photo_url, photo_public_id, amount, disbursement_date, notes, qr_data_url, registered_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+        photo_url, photo_public_id, amount, disbursement_date, notes, qr_data_url, registered_by, depot_role)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      RETURNING *`,
     [memberId, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
      photo_url, photo_public_id, amount ? parseInt(amount) : 0, disbursement_date || null,
-     notes, qr_data_url, req.user.id]
+     notes, qr_data_url, req.user.id, depot_role || null]
   );
 
   res.status(201).json({ member: rows[0] });
@@ -170,7 +170,7 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     photo_public_id = result.public_id;
   }
 
-  const { name, phone, district, district_name, sub_county, parish, depot, village, gender, amount, disbursement_date, status, notes } = req.body;
+  const { name, phone, district, district_name, sub_county, parish, depot, depot_role, village, gender, amount, disbursement_date, status, notes } = req.body;
 
   // NIN: keep existing unless a new one is supplied
   let nin = current.nin;
@@ -191,8 +191,8 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     `UPDATE members SET
        name=$1, phone=$2, district=$3, district_name=$4, sub_county=$5, parish=$6,
        depot=$7, village=$8, gender=$9, nin=$10, photo_url=$11, photo_public_id=$12,
-       amount=$13, disbursement_date=$14, status=$15, notes=$16
-     WHERE id=$17 RETURNING *`,
+       amount=$13, disbursement_date=$14, status=$15, notes=$16, depot_role=$17
+     WHERE id=$18 RETURNING *`,
     [name || current.name, phone ?? current.phone,
      district || current.district, district_name || current.district_name,
      sub_county ?? current.sub_county, parish ?? current.parish,
@@ -200,7 +200,8 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
      gender || current.gender, nin, photo_url, photo_public_id,
      amount ? parseInt(amount) : current.amount,
      disbursement_date ?? current.disbursement_date,
-     status || current.status, notes ?? current.notes, id]
+     status || current.status, notes ?? current.notes,
+     depot_role ?? current.depot_role, id]
   );
 
   res.json({ member: rows[0] });
