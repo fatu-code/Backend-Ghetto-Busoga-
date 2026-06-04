@@ -84,6 +84,10 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     'UPDATE depots SET name=$1, sub_county=$2, parish=$3 WHERE id=$4 RETURNING *',
     [name, sub_county, parish, req.params.id]
   );
+  // Keep members in sync if the depot was renamed (their depot is stored as text).
+  if (name !== c.name) {
+    await db.query('UPDATE members SET depot = $1 WHERE district = $2 AND depot = $3', [name, c.district, c.name]);
+  }
   await logAudit(db, req, 'depot.update', 'depot', req.params.id, `Updated depot ${name}`);
   res.json({ depot: rows[0] });
 });
