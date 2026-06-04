@@ -39,6 +39,26 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json({ depot: rows[0] });
 });
 
+// POST /api/depots/clear  (admin only) — delete a depot by name AND everyone in it.
+// Handles legacy/hardcoded depots that have no depots-table row but do have members.
+router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
+  const db = req.app.locals.db;
+  const district = String(req.body.district || '').trim();
+  const name     = String(req.body.name || '').trim();
+  if (!district || !name)
+    return res.status(400).json({ error: 'District and depot name are required' });
+
+  await db.query(
+    `DELETE FROM repayments WHERE member_id IN (SELECT id FROM members WHERE district = $1 AND depot = $2)`,
+    [district, name]
+  );
+  const del = await db.query('DELETE FROM members WHERE district = $1 AND depot = $2', [district, name]);
+  await db.query('DELETE FROM depots WHERE district = $1 AND lower(name) = lower($2)', [district, name]);
+  await logAudit(db, req, 'depot.delete', 'depot', null,
+    `Deleted depot ${name} (${district}) with ${del.rowCount} member(s)`);
+  res.json({ success: true, membersDeleted: del.rowCount });
+});
+
 // PUT /api/depots/:id  (admin only)
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
