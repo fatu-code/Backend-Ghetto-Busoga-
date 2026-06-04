@@ -21,14 +21,14 @@ router.post('/login', async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
 
   const token = jwt.sign(
-    { id: user.id, name: user.name, username: user.username, role: user.role },
+    { id: user.id, name: user.name, username: user.username, role: user.role, district: user.district || null },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
 
   res.json({
     token,
-    user: { id: user.id, name: user.name, username: user.username, role: user.role },
+    user: { id: user.id, name: user.name, username: user.username, role: user.role, district: user.district || null },
   });
 });
 
@@ -51,12 +51,12 @@ router.put('/account', requireAuth, async (req, res) => {
   const newName = (name && name.trim()) ? name.trim() : user.name;
 
   const upd = await db.query(
-    'UPDATE users SET name = $1, password_hash = $2 WHERE id = $3 RETURNING id, name, username, role',
+    'UPDATE users SET name = $1, password_hash = $2 WHERE id = $3 RETURNING id, name, username, role, district',
     [newName, hash, user.id]
   );
   const u = upd.rows[0];
   const token = jwt.sign(
-    { id: u.id, name: u.name, username: u.username, role: u.role },
+    { id: u.id, name: u.name, username: u.username, role: u.role, district: u.district || null },
     process.env.JWT_SECRET, { expiresIn: '24h' }
   );
   await logAudit(db, req, 'user.update', 'user', u.id, `Updated own account (@${u.username})`);
