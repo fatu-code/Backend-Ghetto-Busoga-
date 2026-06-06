@@ -82,8 +82,11 @@ router.get('/', requireAuth, async (req, res) => {
   const result = await db.query(
     `SELECT id, name, phone, district, district_name, depot, depot_role, village, gender, nin,
             photo_url, amount, disbursement_date, status, created_at,
-            (SELECT COALESCE(SUM(amount), 0) FROM repayments r WHERE r.member_id = members.id) AS repaid
-       FROM members ${whereClause}
+            COALESCE(r.repaid, 0) AS repaid
+       FROM members
+       LEFT JOIN (SELECT member_id, SUM(amount) AS repaid FROM repayments GROUP BY member_id) r
+         ON r.member_id = members.id
+       ${whereClause}
       ORDER BY created_at DESC
       LIMIT $${i} OFFSET $${i+1}`,
     params
