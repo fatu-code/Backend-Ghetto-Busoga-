@@ -39,8 +39,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json({ depot: rows[0] });
 });
 
-// POST /api/depots/clear  (admin only) — delete a depot by name AND everyone in it.
-// Handles legacy/hardcoded depots that have no depots-table row but do have members.
+// POST /api/depots/clear  (admin only) — delete an EMPTY depot.
+// Beneficiaries are protected: a depot that still holds members cannot be deleted.
+// The admin must move those members to another depot first (see /move below).
 router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   const district = String(req.body.district || '').trim();
@@ -48,15 +49,39 @@ router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
   if (!district || !name)
     return res.status(400).json({ error: 'District and depot name are required' });
 
-  await db.query(
-    `DELETE FROM repayments WHERE member_id IN (SELECT id FROM members WHERE district = $1 AND depot = $2)`,
-    [district, name]
+  const cnt = await db.query(
+    'SELECT COUNT(*) FROM members WHERE district = $1 AND depot = $2', [district, name]
   );
-  const del = await db.query('DELETE FROM members WHERE district = $1 AND depot = $2', [district, name]);
+  const count = parseInt(cnt.rows[0].count);
+  if (count > 0)
+    return res.status(409).json({
+      error: `This depot still has ${count} beneficiar${count === 1 ? 'y' : 'ies'}. Move them to another depot first, then delete the empty depot.`
+    });
+
   await db.query('DELETE FROM depots WHERE district = $1 AND lower(name) = lower($2)', [district, name]);
-  await logAudit(db, req, 'depot.delete', 'depot', null,
-    `Deleted depot ${name} (${district}) with ${del.rowCount} member(s)`);
-  res.json({ success: true, membersDeleted: del.rowCount });
+  await logAudit(db, req, 'depot.delete', 'depot', null, `Deleted empty depot ${name} (${district})`);
+  res.json({ success: true, membersDeleted: 0 });
+});
+
+// POST /api/depots/move  (admin only) — reassign every beneficiary from one depot
+// to another within the same district. Beneficiaries are never lost; only their
+// depot label changes. Use this before deleting a depot you no longer want.
+router.post('/move', requireAuth, requireAdmin, async (req, res) => {
+  const db = req.app.locals.db;
+  const district = String(req.body.district || '').trim();
+  const from     = String(req.body.from || '').trim();
+  const to       = String(req.body.to || '').trim();
+  if (!district || !from || !to)
+    return res.status(400).json({ error: 'District, source depot and destination depot are required' });
+  if (from.toLowerCase() === to.toLowerCase())
+    return res.status(400).json({ error: 'The source and destination depots are the same' });
+
+  const moved = await db.query(
+    'UPDATE members SET depot = $1 WHERE district = $2 AND depot = $3', [to, district, from]
+  );
+  await logAudit(db, req, 'depot.move', 'depot', null,
+    `Moved ${moved.rowCount} beneficiar${moved.rowCount === 1 ? 'y' : 'ies'} from ${from} to ${to} (${district})`);
+  res.json({ success: true, moved: moved.rowCount });
 });
 
 // PUT /api/depots/:id  (admin only)
@@ -95,10 +120,18 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/depots/:id  (admin only)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
-  const cur = await db.query('SELECT name FROM depots WHERE id = $1', [req.params.id]);
+  const cur = await db.query('SELECT name, district FROM depots WHERE id = $1', [req.params.id]);
   if (!cur.rows[0]) return res.status(404).json({ error: 'Depot not found' });
+  const cnt = await db.query(
+    'SELECT COUNT(*) FROM members WHERE district = $1 AND depot = $2', [cur.rows[0].district, cur.rows[0].name]
+  );
+  const count = parseInt(cnt.rows[0].count);
+  if (count > 0)
+    return res.status(409).json({
+      error: `This depot still has ${count} beneficiar${count === 1 ? 'y' : 'ies'}. Move them to another depot first.`
+    });
   await db.query('DELETE FROM depots WHERE id = $1', [req.params.id]);
-  await logAudit(db, req, 'depot.delete', 'depot', req.params.id, `Deleted depot ${cur.rows[0].name}`);
+  await logAudit(db, req, 'depot.delete', 'depot', req.params.id, `Deleted empty depot ${cur.rows[0].name}`);
   res.json({ success: true });
 });
 
