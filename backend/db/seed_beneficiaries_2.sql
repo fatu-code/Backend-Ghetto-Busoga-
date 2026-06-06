@@ -1,4 +1,4 @@
--- BGS — 100 additional hypothetical beneficiaries. Run ONCE in Supabase SQL Editor.
+-- BGS - 100 additional hypothetical beneficiaries. Run ONCE in Supabase SQL Editor.
 -- Lusoga surname + Christian/Muslim given name. IDs auto-generate (BGS-XXX-NNNN).
 BEGIN;
 INSERT INTO members

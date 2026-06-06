@@ -1,4 +1,4 @@
-# BGS — Busoga Ghetto Structure
+# BGS - Busoga Ghetto Structure
 ## Disbursement Verification System
 
 A live beneficiary database for the Busoga Ghetto Structure SACCO Programme

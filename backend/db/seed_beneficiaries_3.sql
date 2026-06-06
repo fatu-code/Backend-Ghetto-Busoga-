@@ -1,4 +1,4 @@
--- BGS — 143 user-supplied beneficiaries. Run ONCE in Supabase SQL Editor.
+-- BGS - 143 user-supplied beneficiaries. Run ONCE in Supabase SQL Editor.
 BEGIN;
 INSERT INTO members
   (id, name, phone, district, district_name, sub_county, parish, depot, gender, amount, disbursement_date, status, notes)

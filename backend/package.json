@@ -1,7 +1,7 @@
 {
   "name": "bgs-system",
   "version": "1.0.0",
-  "description": "Busoga Ghetto Structure — Disbursement Verification System",
+  "description": "Busoga Ghetto Structure - Disbursement Verification System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

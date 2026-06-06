@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
   });
 });
 
-// ── SELF-SERVICE ACCOUNT — change your own name / password ──────────
+// ── SELF-SERVICE ACCOUNT - change your own name / password ──────────
 router.put('/account', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);

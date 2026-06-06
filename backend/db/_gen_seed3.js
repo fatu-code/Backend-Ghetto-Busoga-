@@ -208,7 +208,7 @@ recs.forEach((r, idx) => {
   rows.push(`(next_member_id('${code}'), '${esc(name)}', ${bp ? `'${bp}'` : 'NULL'}, '${code}', '${DMAP[code]}', '${esc(sub)}', '${esc(parish)}', '${depot}', ${gender ? `'${gender}'` : 'NULL'}, ${amount}, '${date}', 'Active', ${notes ? `'${notes}'` : 'NULL'})`);
 });
 
-const HEAD = `-- BGS — ${rows.length} user-supplied beneficiaries. Run ONCE in Supabase SQL Editor.
+const HEAD = `-- BGS - ${rows.length} user-supplied beneficiaries. Run ONCE in Supabase SQL Editor.
 BEGIN;
 INSERT INTO members
   (id, name, phone, district, district_name, sub_county, parish, depot, gender, amount, disbursement_date, status, notes)

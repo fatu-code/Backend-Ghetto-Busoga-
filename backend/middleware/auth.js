@@ -15,9 +15,9 @@ function requireAuth(req, res, next) {
 
 // ── ROLE-BASED ACCESS ───────────────────────────────────────────────
 // Three roles:
-//   admin    — full access, all 12 districts (Fatu, Al-Hajj)
-//   rdc      — view-only oversight, limited to one assigned district
-//   profiler — registers people in one assigned district, never sees money
+//   admin    - full access, all 12 districts (Fatu, Al-Hajj)
+//   rdc      - view-only oversight, limited to one assigned district
+//   profiler - registers people in one assigned district, never sees money
 // Any legacy/unknown role (e.g. an old 'staff' account) is treated as a
 // full-access admin so existing logins keep working.
 function accessOf(user) {

@@ -12,7 +12,7 @@ router.get('/', requireAuth, async (req, res) => {
   res.json({ depots: rows });
 });
 
-// POST /api/depots  (admin only) — create a real depot
+// POST /api/depots  (admin only) - create a real depot
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   const name          = String(req.body.name || '').trim();
@@ -39,7 +39,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json({ depot: rows[0] });
 });
 
-// POST /api/depots/clear  (admin only) — delete an EMPTY depot.
+// POST /api/depots/clear  (admin only) - delete an EMPTY depot.
 // Beneficiaries are protected: a depot that still holds members cannot be deleted.
 // The admin must move those members to another depot first (see /move below).
 router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
@@ -63,7 +63,7 @@ router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
   res.json({ success: true, membersDeleted: 0 });
 });
 
-// POST /api/depots/move  (admin only) — reassign every beneficiary from one depot
+// POST /api/depots/move  (admin only) - reassign every beneficiary from one depot
 // to another within the same district. Beneficiaries are never lost; only their
 // depot label changes. Use this before deleting a depot you no longer want.
 router.post('/move', requireAuth, requireAdmin, async (req, res) => {

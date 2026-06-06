@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────
--- BGS — Beneficiary seed data (42 beneficiaries)
+-- BGS - Beneficiary seed data (42 beneficiaries)
 -- Run ONCE in the Supabase SQL Editor (after init.sql has been run).
 --
 -- Notes:
@@ -8,7 +8,7 @@
 --  * Each loan Guarantor (name + phone) is stored in the notes column
 --  * Gender is inferred from given names and should be verified by staff
 --  * registered_by is attributed to the 'faruk' admin user
---  * Re-running this script will create DUPLICATES (IDs auto-increment) — run once
+--  * Re-running this script will create DUPLICATES (IDs auto-increment) - run once
 -- ─────────────────────────────────────────────────────────────────────
 
 BEGIN;

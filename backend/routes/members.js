@@ -18,7 +18,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ── MULTER — memory storage, we stream to Cloudinary ───────────────
+// ── MULTER - memory storage, we stream to Cloudinary ───────────────
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -29,7 +29,7 @@ const upload = multer({
   },
 });
 
-// Helper: normalise a Uganda NIN — uppercase, strip spaces
+// Helper: normalise a Uganda NIN - uppercase, strip spaces
 function normaliseNin(nin) {
   return (nin || '').toUpperCase().replace(/\s+/g, '').trim();
 }
@@ -50,7 +50,7 @@ function uploadToCloudinary(buffer, publicId) {
   });
 }
 
-// ── GET /api/members — list with filters + pagination ───────────────
+// ── GET /api/members - list with filters + pagination ───────────────
 router.get('/', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   const acc = accessOf(req.user);
@@ -96,7 +96,7 @@ router.get('/', requireAuth, async (req, res) => {
   res.json({ members, total, page: parseInt(page), limit: parseInt(limit) });
 });
 
-// ── GET /api/members/:id — single member (no qr_data_url in list) ──
+// ── GET /api/members/:id - single member (no qr_data_url in list) ──
 router.get('/:id', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   const acc = accessOf(req.user);
@@ -109,7 +109,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   res.json({ member: acc.canSeeMoney ? rows[0] : stripMoney(rows[0]) });
 });
 
-// ── POST /api/members — register new beneficiary ────────────────────
+// ── POST /api/members - register new beneficiary ────────────────────
 router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   const db = req.app.locals.db;
   const acc = accessOf(req.user);
@@ -134,7 +134,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   if (!nin)
     return res.status(400).json({ error: 'NIN is required' });
   if (!isValidNin(nin))
-    return res.status(400).json({ error: 'NIN looks invalid — it should be 10–14 letters/numbers (e.g. CM91...)' });
+    return res.status(400).json({ error: 'NIN looks invalid - it should be 10–14 letters/numbers (e.g. CM91...)' });
 
   // Block duplicate beneficiaries sharing a NIN
   const dup = await db.query('SELECT id, name FROM members WHERE nin = $1', [nin]);
@@ -183,7 +183,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   res.status(201).json({ member: rows[0] });
 });
 
-// ── PUT /api/members/:id — update member ───────────────────────────
+// ── PUT /api/members/:id - update member ───────────────────────────
 router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
   const db = req.app.locals.db;
   const acc = accessOf(req.user);
@@ -222,7 +222,7 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     if (!nin)
       return res.status(400).json({ error: 'NIN is required' });
     if (!isValidNin(nin))
-      return res.status(400).json({ error: 'NIN looks invalid — it should be 10–14 letters/numbers (e.g. CM91...)' });
+      return res.status(400).json({ error: 'NIN looks invalid - it should be 10–14 letters/numbers (e.g. CM91...)' });
     if (nin !== current.nin) {
       const dup = await db.query('SELECT id, name FROM members WHERE nin = $1 AND id <> $2', [nin, id]);
       if (dup.rows[0])
@@ -298,7 +298,7 @@ router.get('/:id/repayments', requireAuth, async (req, res) => {
   res.json({ repayments: rows, total_repaid: total });
 });
 
-// Record a repayment against a disbursed member. Money action — admins only.
+// Record a repayment against a disbursed member. Money action - admins only.
 router.post('/:id/repayments', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   if (!accessOf(req.user).canDisburse)

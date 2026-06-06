@@ -54,7 +54,7 @@ for (const code of Object.keys(ALLOC)) {
   }
 }
 
-const out = `-- BGS — 100 additional hypothetical beneficiaries. Run ONCE in Supabase SQL Editor.
+const out = `-- BGS - 100 additional hypothetical beneficiaries. Run ONCE in Supabase SQL Editor.
 -- Lusoga surname + Christian/Muslim given name. IDs auto-generate (BGS-XXX-NNNN).
 BEGIN;
 INSERT INTO members

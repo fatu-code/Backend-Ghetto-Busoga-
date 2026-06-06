@@ -1,4 +1,4 @@
--- BGS — 200 profiled members for Jinja City (10 per depot; first 5 per depot are the leaders).
+-- BGS - 200 profiled members for Jinja City (10 per depot; first 5 per depot are the leaders).
 -- Profile-first: no money yet, everyone is Pending. Run ONCE in Supabase (after the depot_role migration).
 BEGIN;
 INSERT INTO members

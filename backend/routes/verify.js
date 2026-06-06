@@ -9,7 +9,7 @@ function maskNin(nin) {
   return nin.slice(0, 4) + '•'.repeat(nin.length - 8) + nin.slice(-4);
 }
 
-// GET /api/verify/:id  — no auth required, this is the public endpoint
+// GET /api/verify/:id  - no auth required, this is the public endpoint
 verifyRouter.get('/:id', async (req, res) => {
   const db = req.app.locals.db;
   const { rows } = await db.query(
@@ -20,7 +20,7 @@ verifyRouter.get('/:id', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: 'Beneficiary not found' });
 
-  // Never expose the raw NIN on the public endpoint — only a masked form.
+  // Never expose the raw NIN on the public endpoint - only a masked form.
   const { nin, ...member } = rows[0];
   member.nin_masked = maskNin(nin);
   res.json({ member });

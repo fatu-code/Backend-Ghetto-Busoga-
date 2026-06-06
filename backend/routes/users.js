@@ -7,7 +7,7 @@ const { logAudit } = require('../db/audit');
 const ROLES = ['admin', 'rdc', 'profiler'];
 function cleanRole(r) { return ROLES.includes(r) ? r : 'profiler'; }
 
-// GET /api/users — list users (never returns password hashes)
+// GET /api/users - list users (never returns password hashes)
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   const { rows } = await db.query(
@@ -16,7 +16,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
   res.json({ users: rows });
 });
 
-// POST /api/users — add a user account
+// POST /api/users - add a user account
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   const { name, password } = req.body;
@@ -45,7 +45,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json({ user: rows[0] });
 });
 
-// PUT /api/users/:id — update name/role/district, optionally reset password
+// PUT /api/users/:id - update name/role/district, optionally reset password
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   const { id } = req.params;

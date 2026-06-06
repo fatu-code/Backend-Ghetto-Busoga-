@@ -14,7 +14,7 @@ async function logAudit(db, req, action, entity, entityId, detail) {
       ]
     );
   } catch (e) {
-    // Audit table may not exist yet, or insert failed — ignore so the
+    // Audit table may not exist yet, or insert failed - ignore so the
     // primary action (register/disburse/etc.) still succeeds.
   }
 }

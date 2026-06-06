@@ -1,10 +1,10 @@
 // ── BGS SEED SCRIPT ─────────────────────────────────────────────────
 // Inserts ~100 sample beneficiaries with real serial IDs + working QR
-// codes. Photos are left blank on purpose — the UI falls back to initials.
+// codes. Photos are left blank on purpose - the UI falls back to initials.
 //
 // Run from the backend folder:   node db/seed.js
 // Requires DATABASE_URL (and optionally APP_URL) in your .env, same as the
-// server. Safe to re-run — it keeps adding fresh records with new serials.
+// server. Safe to re-run - it keeps adding fresh records with new serials.
 // ────────────────────────────────────────────────────────────────────
 require('dotenv').config();
 const { Pool } = require('pg');
@@ -118,7 +118,7 @@ async function seed() {
       if (inserted % 20 === 0) console.log(`  …${inserted}/${COUNT}`);
     }
 
-    console.log(`\n✅ Seeded ${inserted} beneficiaries (no photos — UI shows initials).`);
+    console.log(`\n✅ Seeded ${inserted} beneficiaries (no photos - UI shows initials).`);
   } finally {
     db.release();
     await pool.end();
