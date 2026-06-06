@@ -141,40 +141,45 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   if (dup.rows[0])
     return res.status(409).json({ error: `NIN already registered to ${dup.rows[0].name} (${dup.rows[0].id})` });
 
-  // Generate member ID
-  const idResult = await db.query('SELECT next_member_id($1) AS id', [district]);
-  const memberId = idResult.rows[0].id;
-
-  // Upload photo to Cloudinary if provided
+  // Upload photo to Cloudinary if provided (independent of the serial number)
   let photo_url       = null;
   let photo_public_id = null;
   if (req.file) {
-    const result    = await uploadToCloudinary(req.file.buffer, `member-${memberId}`);
+    const result    = await uploadToCloudinary(req.file.buffer, `member-${district}-${Date.now()}`);
     photo_url       = result.secure_url;
     photo_public_id = result.public_id;
   }
 
-  // Generate QR code
-  const verifyUrl  = `${process.env.APP_URL}/verify.html?id=${memberId}`;
-  const qr_data_url = await QRCode.toDataURL(verifyUrl, {
-    errorCorrectionLevel: 'H',
-    margin: 2,
-    width: 300,
-    color: { dark: '#1a2e22', light: '#ffffff' },
-  });
+  // Assign the next serial (lowest freed number) and insert. Because serials are
+  // reused, two registrations in the same district could race for the same number;
+  // the id is the primary key, so on the rare clash we grab the next free one and retry.
+  let rows;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const memberId  = (await db.query('SELECT next_member_id($1) AS id', [district])).rows[0].id;
+    const verifyUrl = `${process.env.APP_URL}/verify.html?id=${memberId}`;
+    const qr_data_url = await QRCode.toDataURL(verifyUrl, {
+      errorCorrectionLevel: 'H', margin: 2, width: 300,
+      color: { dark: '#1a2e22', light: '#ffffff' },
+    });
+    try {
+      ({ rows } = await db.query(
+        `INSERT INTO members
+           (id, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
+            photo_url, photo_public_id, amount, disbursement_date, notes, qr_data_url, registered_by, depot_role)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+         RETURNING *`,
+        [memberId, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
+         photo_url, photo_public_id, amountVal, disbVal,
+         notes, qr_data_url, req.user.id, depot_role || null]
+      ));
+      break;
+    } catch (e) {
+      if (e.code === '23505' && attempt < 4) continue; // serial taken in a race, try the next free number
+      throw e;
+    }
+  }
 
-  const { rows } = await db.query(
-    `INSERT INTO members
-       (id, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
-        photo_url, photo_public_id, amount, disbursement_date, notes, qr_data_url, registered_by, depot_role)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-     RETURNING *`,
-    [memberId, name, phone, district, district_name, sub_county, parish, depot, village, gender, nin,
-     photo_url, photo_public_id, amountVal, disbVal,
-     notes, qr_data_url, req.user.id, depot_role || null]
-  );
-
-  await logAudit(db, req, 'member.create', 'member', memberId, `Profiled ${name} (${memberId})`);
+  await logAudit(db, req, 'member.create', 'member', rows[0].id, `Profiled ${name} (${rows[0].id})`);
   res.status(201).json({ member: rows[0] });
 });
 

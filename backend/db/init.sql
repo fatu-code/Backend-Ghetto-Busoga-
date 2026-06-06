@@ -94,16 +94,26 @@ INSERT INTO member_sequences (district) VALUES
   ('BSA'),('NMY'),('BGW')
 ON CONFLICT (district) DO NOTHING;
 
--- Function: generate next member ID
+-- Function: generate next member ID.
+-- Reuses freed numbers: it returns the LOWEST positive serial not currently held
+-- by a member in this district. So deleting members frees their numbers, and a
+-- district with no members starts again at 0001. (The member_sequences table above
+-- is kept for history but is no longer read by this function.)
 CREATE OR REPLACE FUNCTION next_member_id(p_district VARCHAR)
 RETURNS VARCHAR AS $$
 DECLARE
   v_seq INTEGER;
 BEGIN
-  UPDATE member_sequences
-     SET next_seq = next_seq + 1
-   WHERE district = p_district
-  RETURNING next_seq - 1 INTO v_seq;
+  SELECT MIN(g) INTO v_seq
+    FROM generate_series(
+           1,
+           COALESCE((SELECT MAX(CAST(split_part(id, '-', 3) AS INTEGER))
+                       FROM members WHERE district = p_district), 0) + 1
+         ) AS g
+   WHERE g NOT IN (
+           SELECT CAST(split_part(id, '-', 3) AS INTEGER)
+             FROM members WHERE district = p_district
+         );
   RETURN 'BGS-' || p_district || '-' || LPAD(v_seq::TEXT, 4, '0');
 END;
 $$ LANGUAGE plpgsql;
