@@ -307,6 +307,16 @@ router.post('/:id/repayments', requireAuth, async (req, res) => {
   const amt = parseInt(req.body.amount);
   if (!amt || amt <= 0) return res.status(400).json({ error: 'Enter a valid repayment amount' });
 
+  // Never let a loan be repaid beyond what is owed (principal + 6%).
+  const sumRes = await db.query('SELECT COALESCE(SUM(amount), 0) AS repaid FROM repayments WHERE member_id = $1', [id]);
+  const alreadyRepaid = Number(sumRes.rows[0].repaid);
+  const totalDue = Math.round(Number(member.rows[0].amount) * 1.06);
+  const outstanding = totalDue - alreadyRepaid;
+  if (outstanding <= 0)
+    return res.status(400).json({ error: 'This loan is already fully cleared. Nothing more is owed.' });
+  if (amt > outstanding)
+    return res.status(400).json({ error: `That is more than the outstanding balance. Only UGX ${outstanding.toLocaleString('en-UG')} remains.` });
+
   await db.query(
     'INSERT INTO repayments (member_id, amount, paid_on, recorded_by) VALUES ($1,$2,$3,$4)',
     [id, amt, req.body.paid_on || new Date(), req.user.id]
