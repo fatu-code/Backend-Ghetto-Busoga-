@@ -21,6 +21,7 @@ router.get('/', requireAuth, async (req, res) => {
         COUNT(DISTINCT district)       AS districts_covered,
         COUNT(DISTINCT depot)          AS total_depots,
         COUNT(*) FILTER (WHERE status = 'Active') AS active_members,
+        COUNT(*) FILTER (WHERE amount > 0)        AS disbursed_count,
         (SELECT COALESCE(SUM(r.amount), 0) FROM repayments r ${repWhere}) AS total_repaid,
         (SELECT COUNT(*) FROM members m
            WHERE m.amount > 0 AND m.disbursement_date IS NOT NULL
@@ -33,10 +34,11 @@ router.get('/', requireAuth, async (req, res) => {
     db.query(`
       SELECT district, district_name,
              COUNT(*)     AS member_count,
+             COUNT(*) FILTER (WHERE amount > 0) AS disbursed_count,
              SUM(amount)  AS total_amount
         FROM members ${memWhere}
        GROUP BY district, district_name
-       ORDER BY total_amount DESC
+       ORDER BY total_amount DESC NULLS LAST, member_count DESC
     `, dparams),
     db.query(`
       SELECT depot, district_name,
@@ -61,7 +63,8 @@ router.get('/', requireAuth, async (req, res) => {
     t.total_disbursed = null;
     t.total_repaid = null;
     t.overdue_count = null;
-    byDistrict.rows.forEach(r => { r.total_amount = null; });
+    t.disbursed_count = null;
+    byDistrict.rows.forEach(r => { r.total_amount = null; r.disbursed_count = null; });
     byDepot.rows.forEach(r => { r.total_amount = null; });
     recent.rows.forEach(r => { r.amount = null; r.disbursement_date = null; });
   }
