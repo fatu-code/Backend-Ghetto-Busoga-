@@ -261,6 +261,36 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
   res.json({ member: rows[0] });
 });
 
+// ── BULK DISBURSE (admin only) ──────────────────────────────────────
+// Disburse many beneficiaries in one request. Only members not yet disbursed
+// (amount = 0) are touched, so re-running can never double-disburse anyone.
+router.post('/disburse-bulk', requireAuth, async (req, res) => {
+  if (!accessOf(req.user).canDisburse)
+    return res.status(403).json({ error: 'Only an administrator can disburse funds' });
+  const db = req.app.locals.db;
+  const date = req.body.date || new Date();
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'No beneficiaries were selected' });
+
+  let disbursed = 0, total = 0;
+  for (const it of items) {
+    const amt = parseInt(it.amount);
+    if (!it || !it.id || !amt || amt <= 0) continue;
+    const r = await db.query(
+      `UPDATE members SET amount = $1, disbursement_date = $2
+         WHERE id = $3 AND amount = 0
+       RETURNING id, name`,
+      [amt, date, it.id]
+    );
+    if (r.rows[0]) {
+      disbursed++; total += amt;
+      await logAudit(db, req, 'member.disburse', 'member', it.id,
+        `Disbursed UGX ${amt.toLocaleString('en-UG')} to ${r.rows[0].name} (${it.id})`);
+    }
+  }
+  res.json({ disbursed, total, skipped: items.length - disbursed });
+});
+
 // ── DELETE /api/members/:id ─────────────────────────────────────────
 router.delete('/:id', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
