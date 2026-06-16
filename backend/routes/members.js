@@ -215,12 +215,10 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
 
   const { name, phone, district, district_name, sub_county, parish, depot, depot_role, district_role, village, gender, amount, disbursement_date, status, notes } = req.body;
 
-  // A person leads a depot before a district: a district role is only allowed
-  // for a Depot Commander. (Depot commanders elect the district committee.)
+  // A district committee seat can be held by anyone in the district (separate
+  // from their depot role). A person holds at most one depot role + one district role.
   const newDepotRole    = depot_role ?? current.depot_role;
   const newDistrictRole = district_role !== undefined ? (district_role || null) : current.district_role;
-  if (newDistrictRole && newDepotRole !== 'Depot Commander')
-    return res.status(400).json({ error: 'Only a Depot Commander can hold a district role. Make this person a Depot Commander first.' });
 
   // NIN: keep existing unless a new one is supplied
   let nin = current.nin;
