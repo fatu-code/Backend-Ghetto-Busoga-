@@ -44,8 +44,12 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS nin VARCHAR(20);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS sub_county VARCHAR(255);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS parish     VARCHAR(255);
 
--- Migration: depot leadership role (Chairperson, Vice Chairperson, Treasurer, Secretary, Publicity)
+-- Migration: depot leadership role (Depot Commander, Deputy Commander, Secretary, Publicity)
 ALTER TABLE members ADD COLUMN IF NOT EXISTS depot_role VARCHAR(50);
+
+-- Migration: district leadership role (held in addition to a depot role; a person
+-- leads a depot before a district, so this is only set for a Depot Commander)
+ALTER TABLE members ADD COLUMN IF NOT EXISTS district_role VARCHAR(50);
 
 -- ── REPAYMENTS (loan repayments recorded against a disbursed member) ──
 CREATE TABLE IF NOT EXISTS repayments (

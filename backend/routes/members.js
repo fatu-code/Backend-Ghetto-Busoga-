@@ -80,7 +80,7 @@ router.get('/', requireAuth, async (req, res) => {
 
   params.push(parseInt(limit), offset);
   const result = await db.query(
-    `SELECT id, name, phone, district, district_name, depot, depot_role, village, gender, nin,
+    `SELECT id, name, phone, district, district_name, depot, depot_role, district_role, village, gender, nin,
             photo_url, amount, disbursement_date, status, created_at,
             COALESCE(r.repaid, 0) AS repaid
        FROM members
@@ -213,7 +213,14 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     photo_public_id = result.public_id;
   }
 
-  const { name, phone, district, district_name, sub_county, parish, depot, depot_role, village, gender, amount, disbursement_date, status, notes } = req.body;
+  const { name, phone, district, district_name, sub_county, parish, depot, depot_role, district_role, village, gender, amount, disbursement_date, status, notes } = req.body;
+
+  // A person leads a depot before a district: a district role is only allowed
+  // for a Depot Commander. (Depot commanders elect the district committee.)
+  const newDepotRole    = depot_role ?? current.depot_role;
+  const newDistrictRole = district_role !== undefined ? (district_role || null) : current.district_role;
+  if (newDistrictRole && newDepotRole !== 'Depot Commander')
+    return res.status(400).json({ error: 'Only a Depot Commander can hold a district role. Make this person a Depot Commander first.' });
 
   // NIN: keep existing unless a new one is supplied
   let nin = current.nin;
@@ -240,8 +247,8 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     `UPDATE members SET
        name=$1, phone=$2, district=$3, district_name=$4, sub_county=$5, parish=$6,
        depot=$7, village=$8, gender=$9, nin=$10, photo_url=$11, photo_public_id=$12,
-       amount=$13, disbursement_date=$14, status=$15, notes=$16, depot_role=$17
-     WHERE id=$18 RETURNING *`,
+       amount=$13, disbursement_date=$14, status=$15, notes=$16, depot_role=$17, district_role=$18
+     WHERE id=$19 RETURNING *`,
     [name || current.name, phone ?? current.phone,
      effDist, effDistN,
      sub_county ?? current.sub_county, parish ?? current.parish,
@@ -249,7 +256,7 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
      gender || current.gender, nin, photo_url, photo_public_id,
      newAmt, newDisb,
      status || current.status, notes ?? current.notes,
-     depot_role ?? current.depot_role, id]
+     newDepotRole, newDistrictRole, id]
   );
 
   const disbursing = Number(current.amount) === 0 && newAmt > 0;
