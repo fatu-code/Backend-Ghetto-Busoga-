@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { logAudit } = require('../db/audit');
+const cache = require('../cache');
 
 // GET /api/depots  (any signed-in user; optional ?district=CODE)
 router.get('/', requireAuth, async (req, res) => {
@@ -34,6 +35,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
     [district, district_name, name, sub_county, parish, req.user.id]
   );
+  cache.clear();
   await logAudit(db, req, 'depot.create', 'depot', rows[0].id,
     `Created depot ${name} (${district_name || district})`);
   res.status(201).json({ depot: rows[0] });
@@ -59,6 +61,7 @@ router.post('/clear', requireAuth, requireAdmin, async (req, res) => {
     });
 
   await db.query('DELETE FROM depots WHERE district = $1 AND lower(name) = lower($2)', [district, name]);
+  cache.clear();
   await logAudit(db, req, 'depot.delete', 'depot', null, `Deleted empty depot ${name} (${district})`);
   res.json({ success: true, membersDeleted: 0 });
 });
@@ -79,6 +82,7 @@ router.post('/move', requireAuth, requireAdmin, async (req, res) => {
   const moved = await db.query(
     'UPDATE members SET depot = $1 WHERE district = $2 AND depot = $3', [to, district, from]
   );
+  cache.clear();
   await logAudit(db, req, 'depot.move', 'depot', null,
     `Moved ${moved.rowCount} beneficiar${moved.rowCount === 1 ? 'y' : 'ies'} from ${from} to ${to} (${district})`);
   res.json({ success: true, moved: moved.rowCount });
@@ -113,6 +117,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   if (name !== c.name) {
     await db.query('UPDATE members SET depot = $1 WHERE district = $2 AND depot = $3', [name, c.district, c.name]);
   }
+  cache.clear();
   await logAudit(db, req, 'depot.update', 'depot', req.params.id, `Updated depot ${name}`);
   res.json({ depot: rows[0] });
 });
@@ -131,6 +136,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
       error: `This depot still has ${count} beneficiar${count === 1 ? 'y' : 'ies'}. Move them to another depot first.`
     });
   await db.query('DELETE FROM depots WHERE id = $1', [req.params.id]);
+  cache.clear();
   await logAudit(db, req, 'depot.delete', 'depot', req.params.id, `Deleted empty depot ${cur.rows[0].name}`);
   res.json({ success: true });
 });
