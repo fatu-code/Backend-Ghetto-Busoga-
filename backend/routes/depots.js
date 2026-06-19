@@ -4,12 +4,21 @@ const { logAudit } = require('../db/audit');
 const cache = require('../cache');
 
 // GET /api/depots  (any signed-in user; optional ?district=CODE)
+// Cached briefly and cleared on any depot/member write, so depot pages don't pay a
+// DB round-trip every load. The list is the same for everyone, so the key is just
+// the scope (a district code or "all").
 router.get('/', requireAuth, async (req, res) => {
   const db = req.app.locals.db;
   const { district } = req.query;
-  const { rows } = district
-    ? await db.query('SELECT * FROM depots WHERE district = $1 ORDER BY name', [district])
-    : await db.query('SELECT * FROM depots ORDER BY district, name');
+  const cacheKey = 'depots:' + (district || 'all');
+  let rows = cache.get(cacheKey);
+  if (!rows) {
+    const q = district
+      ? await db.query('SELECT * FROM depots WHERE district = $1 ORDER BY name', [district])
+      : await db.query('SELECT * FROM depots ORDER BY district, name');
+    rows = q.rows;
+    cache.set(cacheKey, rows);
+  }
   res.json({ depots: rows });
 });
 
