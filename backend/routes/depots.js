@@ -76,7 +76,9 @@ router.post('/move', requireAuth, requireAdmin, async (req, res) => {
   const to       = String(req.body.to || '').trim();
   if (!district || !from || !to)
     return res.status(400).json({ error: 'District, source depot and destination depot are required' });
-  if (from.toLowerCase() === to.toLowerCase())
+  // Exact match only: a case-variant (e.g. "China Town" -> "CHINA TOWN") is a valid
+  // merge of duplicate depots, so it must be allowed through.
+  if (from === to)
     return res.status(400).json({ error: 'The source and destination depots are the same' });
 
   const moved = await db.query(
