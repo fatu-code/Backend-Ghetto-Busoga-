@@ -13,7 +13,10 @@ function get(key) {
   return e.val;
 }
 
-function set(key, val, ttlMs = 30000) {
+// Default 2 minutes. This is safe because every write clears the whole cache,
+// so the only thing the TTL guards against is data changed OUTSIDE the app
+// (e.g. a manual SQL edit in Supabase) - which is rare and tolerable for 2 min.
+function set(key, val, ttlMs = 120000) {
   store.set(key, { val, exp: Date.now() + ttlMs });
 }
 
