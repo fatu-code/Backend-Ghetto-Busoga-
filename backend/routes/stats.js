@@ -59,7 +59,7 @@ router.get('/', requireAuth, async (req, res) => {
       SELECT id, name, district_name, depot, amount, disbursement_date, photo_url, created_at
         FROM members ${memWhere}
        ORDER BY created_at DESC
-       LIMIT 5
+       LIMIT 6
     `, dparams),
   ]);
     raw = {
