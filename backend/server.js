@@ -101,7 +101,7 @@ app.get('/v/:id', async (req, res) => {
   if (!m) {
     return res.status(404).send(shell(`
       <div class="hd"><div class="prog">Busoga Ghetto Presidential Empowerment Fund</div>
-        <div class="off">Office of the President, State House Uganda</div></div>
+        <div class="off">Office of the Special Presidential Assistant, State House Uganda</div></div>
       <div class="nf"><div class="x">&#9888;</div><h1>Beneficiary not found</h1>
         <p>No record matches this code. It may be invalid or withdrawn.</p></div>`));
   }
@@ -113,7 +113,7 @@ app.get('/v/:id', async (req, res) => {
   res.send(shell(`
     <div class="hd">
       <div class="prog">Busoga Ghetto Presidential Empowerment Fund</div>
-      <div class="off">Office of the President, State House Uganda</div>
+      <div class="off">Office of the Special Presidential Assistant, State House Uganda</div>
     </div>
     <div style="text-align:center"><span class="badge"><span class="dot"></span>Verified Beneficiary</span></div>
     <div class="ident">
@@ -130,7 +130,7 @@ app.get('/v/:id', async (req, res) => {
       <div class="row"><span class="k">Disbursed</span><span class="v">${esc(fmtDate(m.disbursement_date))}</span></div>
       <div class="row"><span class="k">Amount Received</span><span class="v amt">UGX ${esc(fmt(m.amount))}</span></div>
     </div>
-    <div class="ft">This record is maintained by the Busoga Ghetto Presidential Empowerment Fund<br>under the Office of the President, State House Uganda.</div>`));
+    <div class="ft">This record is maintained by the Busoga Ghetto Presidential Empowerment Fund<br>under the Office of the Special Presidential Assistant, State House Uganda.</div>`));
 });
 
 // ── ERROR HANDLER ───────────────────────────────────────────────────
