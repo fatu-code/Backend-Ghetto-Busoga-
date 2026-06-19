@@ -91,7 +91,11 @@ app.get('/v/:id', async (req, res) => {
   .row .k{font-weight:700;color:#7a8e83}
   .row .v{font-weight:800;color:#1c3326;text-align:right}
   .row .v.amt{color:#009c41;font-size:1rem}
-  .ft{padding:16px 22px 22px;text-align:center;font-size:.66rem;font-weight:700;color:#9aa8a0;line-height:1.6}
+  .ft{padding:20px 22px 24px;text-align:center}
+  .ft .div{height:1px;background:#eef2f0;margin:0 4px 16px}
+  .ft .eyebrow{font-size:.58rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9aa8a0;margin-bottom:8px}
+  .ft .org{font-size:.8rem;font-weight:800;color:#1c3326;line-height:1.35;margin-bottom:6px}
+  .ft .office{font-size:.66rem;font-weight:600;color:#7a8e83;line-height:1.5}
   .nf{padding:46px 24px;text-align:center}
   .nf .x{font-size:2.4rem;margin-bottom:10px}
   .nf h1{font-size:1.2rem;color:#142a1d}
@@ -130,7 +134,12 @@ app.get('/v/:id', async (req, res) => {
       <div class="row"><span class="k">Disbursed</span><span class="v">${esc(fmtDate(m.disbursement_date))}</span></div>
       <div class="row"><span class="k">Amount Received</span><span class="v amt">UGX ${esc(fmt(m.amount))}</span></div>
     </div>
-    <div class="ft">This record is maintained by the Busoga Ghetto Presidential Empowerment Fund<br>under the Office of the Special Presidential Assistant, State House Uganda.</div>`));
+    <div class="ft">
+      <div class="div"></div>
+      <div class="eyebrow">Official Record</div>
+      <div class="org">Busoga Ghetto Presidential Empowerment Fund</div>
+      <div class="office">Office of the Special Presidential Assistant<br>State House Uganda</div>
+    </div>`));
 });
 
 // ── ERROR HANDLER ───────────────────────────────────────────────────
