@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { requireAuth, accessOf } = require('../middleware/auth');
+const cache = require('../cache');
 
 // GET /api/stats
 router.get('/', requireAuth, async (req, res) => {
@@ -13,6 +14,11 @@ router.get('/', requireAuth, async (req, res) => {
   const ovDist   = scoped ? 'AND m.district = $1' : '';
   const dparams  = scoped ? [acc.district] : [];
 
+  // Cache the raw aggregates per scope. Money is blanked per-user below into NEW
+  // objects, so the cached rows are never mutated and stay safe to reuse.
+  const cacheKey = 'stats:' + (scoped ? acc.district : 'all');
+  let raw = cache.get(cacheKey);
+  if (!raw) {
   const [totals, byDistrict, byDepot, recent] = await Promise.all([
     db.query(`
       SELECT
@@ -56,25 +62,26 @@ router.get('/', requireAuth, async (req, res) => {
        LIMIT 5
     `, dparams),
   ]);
-
-  // Profilers never see money.
-  if (!acc.canSeeMoney) {
-    const t = totals.rows[0] || {};
-    t.total_disbursed = null;
-    t.total_repaid = null;
-    t.overdue_count = null;
-    t.disbursed_count = null;
-    byDistrict.rows.forEach(r => { r.total_amount = null; r.disbursed_count = null; });
-    byDepot.rows.forEach(r => { r.total_amount = null; });
-    recent.rows.forEach(r => { r.amount = null; r.disbursement_date = null; });
+    raw = {
+      totals:     totals.rows[0] || {},
+      byDistrict: byDistrict.rows,
+      byDepot:    byDepot.rows,
+      recent:     recent.rows,
+    };
+    cache.set(cacheKey, raw);
   }
 
-  res.json({
-    totals:      totals.rows[0],
-    byDistrict:  byDistrict.rows,
-    byDepot:     byDepot.rows,
-    recent:      recent.rows,
-  });
+  // Profilers never see money - blank it into NEW objects (never touch the cache).
+  if (!acc.canSeeMoney) {
+    return res.json({
+      totals: { ...raw.totals, total_disbursed: null, total_repaid: null, overdue_count: null, disbursed_count: null },
+      byDistrict: raw.byDistrict.map(r => ({ ...r, total_amount: null, disbursed_count: null })),
+      byDepot:    raw.byDepot.map(r => ({ ...r, total_amount: null })),
+      recent:     raw.recent.map(r => ({ ...r, amount: null, disbursement_date: null })),
+    });
+  }
+
+  res.json(raw);
 });
 
 module.exports = router;

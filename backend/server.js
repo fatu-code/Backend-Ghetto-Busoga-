@@ -13,6 +13,11 @@ const app = express();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  max: 10,                       // keep a small warm pool of reusable connections
+  keepAlive: true,               // reuse the TCP socket instead of re-handshaking
+  idleTimeoutMillis: 30000,      // drop idle connections after 30s
+  connectionTimeoutMillis: 10000, // fail fast instead of hanging if the DB is slow
+  statement_timeout: 15000,      // never let a single query hang the request
 });
 app.locals.db = pool;
 

@@ -4,6 +4,7 @@ const cloudinary = require('cloudinary').v2;
 const QRCode     = require('qrcode');
 const { requireAuth, accessOf } = require('../middleware/auth');
 const { logAudit } = require('../db/audit');
+const cache = require('../cache');
 
 // Profilers must never see money. Blank out the financial fields on the way out.
 function stripMoney(row) {
@@ -73,27 +74,36 @@ router.get('/', requireAuth, async (req, res) => {
 
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) FROM members ${whereClause}`, params
-  );
-  const total = parseInt(countResult.rows[0].count);
-
   params.push(parseInt(limit), offset);
-  const result = await db.query(
-    `SELECT id, name, phone, district, district_name, depot, depot_role, district_role, village, gender, nin,
+
+  // One query instead of two: COUNT(*) OVER() gives the total alongside the page,
+  // saving a whole DB round-trip (costly at our hosting region). Result is cached
+  // briefly and reused across requests; money is stripped per-user AFTER the cache,
+  // so the cached rows stay neutral. Key includes the SQL + params so each distinct
+  // filter / district scope / page is cached separately.
+  const sql = `SELECT id, name, phone, district, district_name, depot, depot_role, district_role, village, gender, nin,
             photo_url, amount, disbursement_date, status, created_at,
-            COALESCE(r.repaid, 0) AS repaid
+            COALESCE(r.repaid, 0) AS repaid,
+            COUNT(*) OVER() AS _total
        FROM members
        LEFT JOIN (SELECT member_id, SUM(amount) AS repaid FROM repayments GROUP BY member_id) r
          ON r.member_id = members.id
        ${whereClause}
       ORDER BY created_at DESC
-      LIMIT $${i} OFFSET $${i+1}`,
-    params
-  );
+      LIMIT $${i} OFFSET $${i+1}`;
 
-  const members = acc.canSeeMoney ? result.rows : result.rows.map(stripMoney);
-  res.json({ members, total, page: parseInt(page), limit: parseInt(limit) });
+  const cacheKey = 'members:' + sql + ':' + JSON.stringify(params);
+  let payload = cache.get(cacheKey);
+  if (!payload) {
+    const result = await db.query(sql, params);
+    const total = result.rows.length ? parseInt(result.rows[0]._total) : 0;
+    const rows = result.rows.map(({ _total, ...r }) => r); // drop the helper column
+    payload = { rows, total };
+    cache.set(cacheKey, payload);
+  }
+
+  const members = acc.canSeeMoney ? payload.rows : payload.rows.map(stripMoney);
+  res.json({ members, total: payload.total, page: parseInt(page), limit: parseInt(limit) });
 });
 
 // ── GET /api/members/:id - single member (no qr_data_url in list) ──
@@ -180,6 +190,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   }
 
   await logAudit(db, req, 'member.create', 'member', rows[0].id, `Profiled ${name} (${rows[0].id})`);
+  cache.clear();
   res.status(201).json({ member: rows[0] });
 });
 
@@ -263,6 +274,7 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
       ? `Disbursed UGX ${newAmt.toLocaleString('en-UG')} to ${name || current.name} (${id})`
       : `Updated ${name || current.name} (${id})`);
 
+  cache.clear();
   res.json({ member: rows[0] });
 });
 
@@ -293,6 +305,7 @@ router.post('/disburse-bulk', requireAuth, async (req, res) => {
         `Disbursed UGX ${amt.toLocaleString('en-UG')} to ${r.rows[0].name} (${it.id})`);
     }
   }
+  cache.clear();
   res.json({ disbursed, total, skipped: items.length - disbursed });
 });
 
@@ -309,6 +322,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
   await db.query('DELETE FROM members WHERE id = $1', [req.params.id]);
   await logAudit(db, req, 'member.delete', 'member', req.params.id, `Deleted member ${req.params.id}`);
+  cache.clear();
   res.json({ success: true });
 });
 
@@ -367,6 +381,7 @@ router.post('/:id/repayments', requireAuth, async (req, res) => {
   );
   const total = rows.reduce((s, r) => s + Number(r.amount), 0);
   await logAudit(db, req, 'repayment.add', 'member', id, `Recorded UGX ${amt.toLocaleString('en-UG')} repayment for ${member.rows[0].name} (${id})`);
+  cache.clear();
   res.status(201).json({ repayments: rows, total_repaid: total });
 });
 
