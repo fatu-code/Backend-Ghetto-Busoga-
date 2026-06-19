@@ -151,6 +151,16 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   if (dup.rows[0])
     return res.status(409).json({ error: `NIN already registered to ${dup.rows[0].name} (${dup.rows[0].id})` });
 
+  // A depot's committee has at most two general "Committee Member" seats.
+  if ((req.body.depot_role || '') === 'Committee Member') {
+    const cc = await db.query(
+      "SELECT COUNT(*) FROM members WHERE district = $1 AND depot = $2 AND depot_role = 'Committee Member'",
+      [district, depot]
+    );
+    if (parseInt(cc.rows[0].count) >= 2)
+      return res.status(409).json({ error: 'This depot already has two committee members.' });
+  }
+
   // Upload photo to Cloudinary if provided (independent of the serial number)
   let photo_url       = null;
   let photo_public_id = null;
@@ -251,6 +261,17 @@ router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
   const newDisb  = acc.canSeeMoney ? (disbursement_date ?? current.disbursement_date) : current.disbursement_date;
   const effDist  = acc.scoped ? current.district : (district || current.district);
   const effDistN = acc.scoped ? current.district_name : (district_name || current.district_name);
+
+  // A depot's committee has at most two general "Committee Member" seats.
+  if (newDepotRole === 'Committee Member' && current.depot_role !== 'Committee Member') {
+    const effDepot = depot || current.depot;
+    const cc = await db.query(
+      "SELECT COUNT(*) FROM members WHERE district = $1 AND depot = $2 AND depot_role = 'Committee Member' AND id <> $3",
+      [effDist, effDepot, id]
+    );
+    if (parseInt(cc.rows[0].count) >= 2)
+      return res.status(409).json({ error: 'This depot already has two committee members.' });
+  }
 
   const { rows } = await db.query(
     `UPDATE members SET
